@@ -40,7 +40,7 @@ def get_parameters():
     # parser.add_argument('--model_depth', type=int, default=50, choices=[50, 101, 152], help='the depth of used model')
 
     # Training setting
-    parser.add_argument('--max_epochs', type=int, default=50, help='numer of epochs of training')
+    parser.add_argument('--max_epochs', type=int, default=100, help='numer of epochs of training')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size for the dataloader')
     parser.add_argument('--num_workers', type=int, default=8, help='dataloader for load video')
     parser.add_argument('--clip_duration', type=float, default=1, help='clip duration for the video')
@@ -66,7 +66,7 @@ def get_parameters():
     parser.add_argument('--four_data_path', type=str, default="/workspace/data/multi_class_segmentation_dataset_512",
                         help="4 type class dataset (ASD, DHS, LCS, HipOA) with segmentation, after 5 fold cross validation. The img size is 512 pixel.")
 
-    parser.add_argument('--log_path', type=str, default='./logs', help='the lightning logs saved path')
+    parser.add_argument('--log_path', type=str, default='/workspace/Multi_Classification_PyTorch/logs', help='the lightning logs saved path')
 
     # add the parser to ther Trainer
     # parser = Trainer.add_argparse_args(parser)
@@ -97,16 +97,16 @@ def train(hparams):
     model_check_point = ModelCheckpoint(
         filename='{epoch}-{val_loss:.2f}-{val_acc:.4f}-{val_f1_score:.4f}',
         auto_insert_metric_name=True,
-        monitor="val_acc",
+        monitor="val_f1_score",
         mode="max",
-        save_last=True,
-        save_top_k=3,
+        save_last=False,
+        save_top_k=2,
 
     )
 
     # define the early stop.
     early_stopping = EarlyStopping(
-        monitor='val_acc',
+        monitor='val_f1_score',
         patience=5,
         mode='max',
     )

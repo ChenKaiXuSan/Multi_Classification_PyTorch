@@ -1,8 +1,9 @@
 # %%
-import torch, torchmetrics
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np 
+from torchmetrics import classification
 
 from models.make_model import MakeVideoModule, early_fusion, late_fusion, single_frame
 
@@ -69,12 +70,12 @@ class WalkVideoClassificationLightningModule(LightningModule):
         self.save_hyperparameters()
 
         # set the metrics
-        self._accuracy = torchmetrics.classification.MulticlassAccuracy(num_classes=self.num_class,)
-        self._precision = torchmetrics.classification.MulticlassPrecision(num_classes=self.num_class, )
-        self._f1_score = torchmetrics.classification.MulticlassF1Score(num_classes=self.num_class, )
-        self._auroc = torchmetrics.classification.MulticlassAUROC(num_classes=self.num_class,)
+        self._accuracy = classification.MulticlassAccuracy(num_classes=self.num_class,)
+        self._precision = classification.MulticlassPrecision(num_classes=self.num_class, )
+        self._f1_score = classification.MulticlassF1Score(num_classes=self.num_class, )
+        self._auroc = classification.MulticlassAUROC(num_classes=self.num_class,)
 
-        self._confusion_matrix = torchmetrics.classification.MulticlassConfusionMatrix(num_classes=self.num_class)
+        self._confusion_matrix = classification.MulticlassConfusionMatrix(num_classes=self.num_class)
 
     def forward(self, x):
         return self.model(x)
@@ -195,84 +196,10 @@ class WalkVideoClassificationLightningModule(LightningModule):
         pass
             
     def test_step(self, batch, batch_idx):
-        '''
-        test step when trainer.test called
-
-        Args:
-            batch (3D tensor): b, c, t, h, w
-            batch_idx (_type_): _description_
-        '''
-
-        # input and label
-        video = batch['video'].detach() # b, c, t, h, w
-
-        if self.fusion_method == 'single_frame': 
-            label = batch['label'].detach()
-
-            # when batch > 1, for multi label, to repeat label in (bxt)
-            label = label.repeat_interleave(self.uniform_temporal_subsample_num).squeeze()
-
-        else:
-            label = batch['label'].detach() # b, class_num
-
-        self.model.eval()
-
-        # pred the video frames
-        with torch.no_grad():
-            preds = self.model(video)
-
-        # when torch.size([1]), not squeeze.
-        if preds.size()[0] != 1 or len(preds.size()) != 1 :
-            preds = preds.squeeze(dim=-1)
-            preds_sigmoid = torch.sigmoid(preds)
-        else:
-            preds_sigmoid = torch.sigmoid(preds)
-
-        # squeeze(dim=-1) to keep the torch.Size([1]), not null.
-        val_loss = F.binary_cross_entropy_with_logits(preds, label.float())
-
-        # calc the metric, function from torchmetrics
-        accuracy = self._accuracy(preds_sigmoid, label)
-
-        precision = self._precision(preds_sigmoid, label)
-
-        confusion_matrix = self._confusion_matrix(preds_sigmoid, label)
-
-        # log the val loss and val acc, in step and in epoch.
-        self.log_dict({'test_loss': val_loss, 'test_acc': accuracy, 'test_precision': precision}, on_step=False, on_epoch=True)
-
-        return {
-            'pred': preds_sigmoid.tolist(),
-            'label': label.tolist()
-        }
+        pass
         
     def test_epoch_end(self, outputs):
-        #todo try to store the pred or confusion matrix
-        pred_list = []
-        label_list = []
-
-        for i in outputs:
-            for number in i['pred']:
-                if number > 0.5:
-                    pred_list.append(1)
-                else:
-                    pred_list.append(0)
-            for number in i['label']:
-                label_list.append(number)
-
-        pred = torch.tensor(pred_list)
-        label = torch.tensor(label_list)
-
-        cm = confusion_matrix(label, pred)
-        ax = sns.heatmap(cm, annot=True, fmt="3d")
-
-        ax.set_title('confusion matrix')
-        ax.set(xlabel="pred class", ylabel="ground truth")
-        ax.xaxis.tick_top()
-        plt.show()
-        plt.savefig('test.png')
-
-        return cm 
+       pass
 
     def configure_optimizers(self):
         '''
